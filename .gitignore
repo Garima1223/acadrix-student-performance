@@ -14,3 +14,7 @@ instance/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Slide deck build files
+.deck-build/
+.report-build/

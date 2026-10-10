@@ -350,7 +350,7 @@ function loginView() {
           <li><span class="dot">${icon('users')}</span><div>Nobody slips through the cracks<small>Teachers see who needs support before exams, not after</small></div></li>
           <li><span class="dot">${icon('bulb')}</span><div>Advice that fits you<small>Small, specific steps instead of generic tips</small></div></li>
         </ul>
-        <p class="auth-foot">AIML Summer Internship 2026 · IIHMF, MNNIT Allahabad · Demo data stays in this browser.</p>
+        <p class="auth-foot">AIML Summer Internship 2026 · IIHMF, MNNIT Allahabad</p>
       </div>
 
       <div class="auth-form">
