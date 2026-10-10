@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local database (recreated with demo data on first run)
+instance/
+*.db
+
+# Editor / tool settings
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

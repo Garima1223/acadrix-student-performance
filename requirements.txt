@@ -1,0 +1,7 @@
+# Needed to run the web app (pinned to the versions the saved model was trained with)
+flask==3.1.2
+numpy==2.0.2
+pandas==2.3.2
+scikit-learn==1.6.1
+joblib==1.5.3
+gunicorn==23.0.0

@@ -1,0 +1,140 @@
+{
+  "trainedAt": "2026-10-09T16:12:59+00:00",
+  "dataset": {
+    "name": "Synthetic student performance (ml/generate_dataset.py)",
+    "synthetic": true,
+    "rows": 992,
+    "split": "80 / 20 train-test split",
+    "trainRows": 793,
+    "testRows": 199
+  },
+  "preprocessing": {
+    "rowsRaw": 1015,
+    "duplicatesRemoved": 15,
+    "outliersRemoved": 8,
+    "missingFilled": 79,
+    "rowsClean": 992
+  },
+  "selection": {
+    "kept": [
+      {
+        "name": "attendance_pct",
+        "r": 0.731
+      },
+      {
+        "name": "assignment_score",
+        "r": 0.759
+      },
+      {
+        "name": "internal_avg",
+        "r": 0.844
+      },
+      {
+        "name": "prev_sem_score",
+        "r": 0.663
+      },
+      {
+        "name": "study_hours_week",
+        "r": 0.666
+      }
+    ],
+    "dropped": [
+      {
+        "name": "sleep_hours",
+        "r": 0.07,
+        "reason": "weak link to final score (|r| < 0.15)"
+      },
+      {
+        "name": "commute_minutes",
+        "r": 0.035,
+        "reason": "weak link to final score (|r| < 0.15)"
+      },
+      {
+        "name": "extracurricular",
+        "r": 0.01,
+        "reason": "weak link to final score (|r| < 0.15)"
+      },
+      {
+        "name": "internet_access",
+        "r": 0.016,
+        "reason": "weak link to final score (|r| < 0.15)"
+      },
+      {
+        "name": "gender_male",
+        "r": 0.067,
+        "reason": "weak link to final score (|r| < 0.15)"
+      },
+      {
+        "name": "engagement_index",
+        "r": 0.827,
+        "cvGain": -0.0065,
+        "reason": "engineered feature \u2014 no real accuracy gain (CV R\u00b2 -0.0065)"
+      },
+      {
+        "name": "study_efficiency",
+        "r": -0.378,
+        "cvGain": -0.0033,
+        "reason": "engineered feature \u2014 no real accuracy gain (CV R\u00b2 -0.0033)"
+      }
+    ],
+    "deployed": [
+      "attendance_pct",
+      "assignment_score",
+      "internal_avg",
+      "prev_sem_score",
+      "study_hours_week"
+    ],
+    "threshold": 0.15
+  },
+  "models": [
+    {
+      "name": "Linear Regression",
+      "kind": "Linear model",
+      "mae": 3.319,
+      "mse": 17.375,
+      "rmse": 4.168,
+      "r2": 0.9014,
+      "cvR2": 0.8933,
+      "cvR2Std": 0.0093,
+      "trainTime": "0.00s"
+    },
+    {
+      "name": "Random Forest",
+      "kind": "Bagging ensemble",
+      "mae": 3.24,
+      "mse": 18.168,
+      "rmse": 4.262,
+      "r2": 0.8969,
+      "cvR2": 0.8789,
+      "cvR2Std": 0.0091,
+      "trainTime": "0.99s"
+    },
+    {
+      "name": "XGBoost",
+      "kind": "Gradient boosting",
+      "mae": 3.33,
+      "mse": 18.284,
+      "rmse": 4.276,
+      "r2": 0.8962,
+      "cvR2": 0.8885,
+      "cvR2Std": 0.0104,
+      "trainTime": "8.31s"
+    }
+  ],
+  "best": "Linear Regression",
+  "importance": {
+    "Attendance": 0.2088,
+    "Assignment Score": 0.1938,
+    "Internal Assessment": 0.3469,
+    "Previous Sem Score": 0.1568,
+    "Study Hours / Week": 0.0938
+  },
+  "figures": [
+    "boxplots_features.png",
+    "correlation_heatmap.png",
+    "histogram_final_score.png",
+    "model_comparison.png",
+    "predicted_vs_actual.png",
+    "scatter_vs_final_score.png"
+  ]
+}
