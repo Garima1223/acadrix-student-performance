@@ -1056,6 +1056,52 @@ textarea.input { resize: vertical; min-height: 96px; font: inherit; line-height:
   .chart-box { height: 240px; }
   .topbar { align-items: flex-start; }
 }
+/* ---------- Portal wallpapers (student: study desk · teacher: icon art) ---------- */
+.wallpaper { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; opacity: 0; transition: opacity .6s ease; }
+.wallpaper-art {
+  position: absolute; inset: -3%;
+  background-repeat: no-repeat; background-size: auto 100%; background-position: right center;
+  animation: wallpaperDrift 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.wallpaper-veil { position: absolute; inset: 0; }
+body[data-portal="student"] .wallpaper, body[data-portal="teacher"] .wallpaper { opacity: 1; }
+body[data-portal="student"] .bg-orbs, body[data-portal="teacher"] .bg-orbs { display: none; }
+/* the image is fitted to the screen height on the right; its left edge fades into a matching colour */
+body[data-portal="student"] .wallpaper-art {
+  background-color: #EDCDA2;
+  background-image: linear-gradient(90deg, #EDCDA2 calc(100% - 59vh), rgba(237, 205, 162, 0) calc(100% - 42vh)), url('assets/wallpaper-student.jpg');
+}
+body[data-portal="teacher"] .wallpaper-art {
+  background-color: #314C67;
+  background-image: linear-gradient(90deg, #314C67 calc(100% - 90vh), rgba(49, 76, 103, 0) calc(100% - 66vh)), url('assets/wallpaper-teacher.jpg');
+  animation-name: wallpaperDriftTeacher;
+}
+/* a veil in the current theme's colour keeps cards readable in every theme and mode */
+body[data-portal] .wallpaper-veil {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 70%, transparent) 0%, color-mix(in srgb, var(--bg) 58%, transparent) 55%, color-mix(in srgb, var(--bg) 40%, transparent) 100%);
+}
+[data-mode="light"] body[data-portal] .wallpaper-veil {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 50%, transparent) 0%, color-mix(in srgb, var(--bg) 34%, transparent) 55%, color-mix(in srgb, var(--bg) 16%, transparent) 100%);
+}
+/* the teacher art is fine white line-work, so it needs a firmer veil to keep text crisp */
+body[data-portal="teacher"] .wallpaper-veil {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 74%, transparent) 0%, color-mix(in srgb, var(--bg) 68%, transparent) 55%, color-mix(in srgb, var(--bg) 58%, transparent) 100%);
+}
+[data-mode="light"] body[data-portal="teacher"] .wallpaper-veil {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 62%, transparent) 0%, color-mix(in srgb, var(--bg) 52%, transparent) 55%, color-mix(in srgb, var(--bg) 40%, transparent) 100%);
+}
+@keyframes wallpaperDrift {
+  0% { transform: scale(1) translate(0, 0); }
+  50% { transform: scale(1.05) translate(-1.2%, -1%); }
+  100% { transform: scale(1.03) translate(1%, 1.2%); }
+}
+@keyframes wallpaperDriftTeacher {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.06) rotate(-1.2deg); }
+  100% { transform: scale(1.02) rotate(1deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

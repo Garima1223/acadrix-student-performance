@@ -517,6 +517,7 @@ const NAV = {
 function render() {
   destroyCharts();
   applyTheme();
+  document.body.dataset.portal = state.session ? state.session.role : '';   // picks the portal wallpaper
   const app = $('#app');
   chat.refresh();
   if (!state.session) { app.innerHTML = loginView(); bindLogin(); return; }
