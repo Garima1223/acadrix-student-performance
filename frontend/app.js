@@ -126,6 +126,9 @@ const P = {
   clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  lang: '<path d="M3 5h9M7.5 3v2M10 5c-.8 4-3.4 7.2-6.5 9"/><path d="M5.5 9c1.4 2.2 3.4 3.9 6 5"/><path d="M13 20l4-9 4 9M14.4 17h5.2"/>',
+  speaker: '<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   megaphone: '<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9a3 3 0 0 1 0 6M18 6a7 7 0 0 1 0 12"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
@@ -196,6 +199,12 @@ const state = {
   seen: {},
   attDate: null,
   attSection: 'all',
+  lang: store.get('acx_lang', 'en') === 'hi' ? 'hi' : 'en',
+  showWelcome: !store.get('acx_welcome_seen', false),
+  tourStep: 0,
+  voice: false,
+  tourTimer: null,
+  tourKeys: null,
 };
 const currentStudent = () => state.session?.role === 'student' ? state.students.find(s => s.id === state.session.id) : null;
 const currentTeacher = () => state.session?.role === 'teacher' ? state.user : null;
@@ -324,31 +333,247 @@ function contribBars(c) {
   }).join('')}</div>`;
 }
 
+/* ---------- Language (English / Hindi) ---------- */
+const I18N = {
+  en: {
+    student: 'Student', teacher: 'Teacher',
+    heroTitle: 'Welcome to<br><span class="hl">Acadrix</span>',
+    typingPrefix: "Let's understand your ", typingWords: ['progress.', 'strengths.', 'next steps.', 'potential.'],
+    heroText: 'A friendly space for students and teachers to follow progress, spot problems early and plan what comes next.',
+    feat: [['See where you\'re heading', 'Your marks, attendance and habits turned into a clear forecast'],
+           ['Nobody slips through the cracks', 'Teachers see who needs support before exams, not after'],
+           ['Advice that fits you', 'Small, specific steps instead of generic tips']],
+    bubble: "Hi! I'm Drix. Ask me anything!",
+    studentTitle: 'Hey, welcome back', studentSub: "Sign in to see how you're doing and what to focus on next.",
+    teacherTitle: 'Good to see you again', teacherSub: 'Sign in to check on your class and plan the week ahead.',
+    studentUser: 'Student ID', teacherUser: 'Username', password: 'Password', passwordPh: 'Your password',
+    signIn: 'Sign in',
+    studentHint: 'Forgot your password? Your class teacher can reset it for you.',
+    teacherHint: 'Trouble signing in? Contact the department office.',
+    demoTitle: 'Just looking around? Use a demo account',
+    tryStudent: 'Try as a student', tryTeacher: 'Try as a teacher',
+    demoNote: 'Tap a card to fill it in. Every demo student (STU101 – STU112) uses <b>student@123</b>.',
+    tour: 'Take the tour',
+    fillBoth: r => `Please fill in both your ${r === 'teacher' ? 'username' : 'student ID'} and password.`,
+    mismatch: r => `Hmm, that ${r === 'teacher' ? 'username' : 'student ID'} and password don't match. Double-check them, or try a demo account below.`,
+    next: 'Next', back: 'Back', skip: 'Skip tour', start: "Let's get started", listen: 'Listen', stop: 'Stop',
+    stepOf: (i, n) => `Step ${i} of ${n}`, guide: 'Your guide, Drix',
+  },
+  hi: {
+    student: 'छात्र', teacher: 'शिक्षक',
+    heroTitle: '<span class="hl">Acadrix</span> में<br>आपका स्वागत है',
+    typingPrefix: 'आइए समझें आपकी ', typingWords: ['प्रगति।', 'ताकत।', 'अगले कदम।', 'क्षमता।'],
+    heroText: 'छात्रों और शिक्षकों के लिए एक आसान जगह — प्रगति देखिए, समस्याएँ जल्दी पहचानिए और आगे की योजना बनाइए।',
+    feat: [['जानिए आप कहाँ जा रहे हैं', 'आपके अंक, उपस्थिति और आदतों से एक साफ़ अनुमान'],
+           ['कोई भी पीछे नहीं छूटेगा', 'शिक्षक परीक्षा से पहले ही देख लेते हैं कि किसे मदद चाहिए'],
+           ['आपके लिए सही सलाह', 'आम सुझावों की जगह छोटे और साफ़ कदम']],
+    bubble: 'नमस्ते! मैं ड्रिक्स हूँ। कुछ भी पूछिए!',
+    studentTitle: 'नमस्ते, फिर से स्वागत है', studentSub: 'साइन इन करके देखिए आप कैसा कर रहे हैं और आगे किस पर ध्यान देना है।',
+    teacherTitle: 'आपको फिर से देखकर अच्छा लगा', teacherSub: 'साइन इन करके अपनी क्लास देखिए और हफ़्ते की योजना बनाइए।',
+    studentUser: 'स्टूडेंट ID', teacherUser: 'यूज़रनेम', password: 'पासवर्ड', passwordPh: 'आपका पासवर्ड',
+    signIn: 'साइन इन करें',
+    studentHint: 'पासवर्ड भूल गए? आपके क्लास टीचर इसे रीसेट कर सकते हैं।',
+    teacherHint: 'साइन इन में दिक्कत? डिपार्टमेंट ऑफ़िस से संपर्क करें।',
+    demoTitle: 'बस देख रहे हैं? डेमो अकाउंट इस्तेमाल करें',
+    tryStudent: 'छात्र के रूप में आज़माएँ', tryTeacher: 'शिक्षक के रूप में आज़माएँ',
+    demoNote: 'कार्ड पर टैप करें, जानकारी अपने-आप भर जाएगी। हर डेमो छात्र (STU101 – STU112) का पासवर्ड <b>student@123</b> है।',
+    tour: 'टूर देखें',
+    fillBoth: r => `कृपया अपना ${r === 'teacher' ? 'यूज़रनेम' : 'स्टूडेंट ID'} और पासवर्ड दोनों भरें।`,
+    mismatch: r => `यह ${r === 'teacher' ? 'यूज़रनेम' : 'स्टूडेंट ID'} और पासवर्ड मेल नहीं खाते। दोबारा जाँचिए, या नीचे दिया डेमो अकाउंट आज़माइए।`,
+    next: 'आगे', back: 'पीछे', skip: 'टूर छोड़ें', start: 'चलिए शुरू करें', listen: 'सुनें', stop: 'रोकें',
+    stepOf: (i, n) => `चरण ${i} / ${n}`, guide: 'आपका गाइड, ड्रिक्स',
+  },
+};
+const tr = key => (I18N[state.lang] || I18N.en)[key];
+function setLang(lang) {
+  if (!I18N[lang] || lang === state.lang) return;
+  state.lang = lang;
+  store.set('acx_lang', lang);
+  document.documentElement.lang = lang === 'hi' ? 'hi' : 'en';
+  if (!state.session) render();
+}
+const langSwitch = () => `
+  <div class="lang-switch" role="group" aria-label="Language / भाषा">
+    <span class="lang-ic" aria-hidden="true">${icon('lang')}</span>
+    <button type="button" data-lang-set="en" class="${state.lang === 'en' ? 'active' : ''}" aria-pressed="${state.lang === 'en'}">EN</button>
+    <button type="button" data-lang-set="hi" class="${state.lang === 'hi' ? 'active' : ''}" aria-pressed="${state.lang === 'hi'}" lang="hi">हिं</button>
+  </div>`;
+
+/* ---------- Welcome tour (Drix explains Acadrix, line by line) ---------- */
+const TOUR = [
+  { icon: 'spark', chips: [],
+    en: { title: "Hi, I'm Drix!", lines: ['Welcome to Acadrix, a friendly space for students and teachers.', "I'll walk you through everything in about a minute.", 'Press Next whenever you are ready, or Listen to hear me speak.'] },
+    hi: { title: 'नमस्ते, मैं ड्रिक्स हूँ!', lines: ['Acadrix में आपका स्वागत है — छात्रों और शिक्षकों के लिए एक आसान जगह।', 'मैं लगभग एक मिनट में आपको सब कुछ समझा दूँगा।', 'तैयार हों तो "आगे" दबाइए, या मेरी आवाज़ सुनने के लिए "सुनें" दबाइए।'] } },
+  { icon: 'target', chips: { en: ['Score 0–100', 'Grade', 'Risk level'], hi: ['अंक 0–100', 'ग्रेड', 'जोखिम स्तर'] },
+    en: { title: 'What does Acadrix do?', lines: ["Acadrix predicts a student's final score, from 0 to 100, before the exams arrive.", 'That gives teachers time to help, and students time to improve.', 'Every prediction also comes with a grade and a risk level.'] },
+    hi: { title: 'Acadrix क्या करता है?', lines: ['Acadrix परीक्षा से पहले ही छात्र के फ़ाइनल अंक (0 से 100) का अनुमान लगाता है।', 'इससे शिक्षकों को मदद करने का और छात्रों को सुधार करने का समय मिल जाता है।', 'हर अनुमान के साथ एक ग्रेड और जोखिम स्तर भी मिलता है।'] } },
+  { icon: 'clipboard', chips: { en: ['Attendance', 'Assignments', 'Internal marks', 'Previous semester', 'Study hours'], hi: ['उपस्थिति', 'असाइनमेंट', 'इंटरनल मार्क्स', 'पिछला सेमेस्टर', 'पढ़ाई के घंटे'] },
+    en: { title: 'It looks at five things', lines: ['Attendance, assignment scores and internal marks.', 'The previous semester score and weekly study hours.', 'Colleges already record all of these, so nothing extra is needed.'] },
+    hi: { title: 'यह पाँच चीज़ें देखता है', lines: ['उपस्थिति, असाइनमेंट के अंक और इंटरनल मार्क्स।', 'पिछले सेमेस्टर के अंक और हर हफ़्ते पढ़ाई के घंटे।', 'कॉलेज ये सब पहले से रिकॉर्ड करते हैं, इसलिए कुछ अलग से नहीं चाहिए।'] } },
+  { icon: 'flask', chips: { en: ['1,000+ records', '3 models compared', 'R² 0.901', '±3.3 marks'], hi: ['1,000+ रिकॉर्ड', '3 मॉडल की तुलना', 'R² 0.901', '±3.3 अंक'] },
+    en: { title: 'How does it predict?', lines: ['A machine learning model learned the pattern from over 1,000 student records.', 'We compared three models; Linear Regression did best, with an R² of 0.901.', 'On average, its prediction is within about 3 marks of the real score.'] },
+    hi: { title: 'यह अनुमान कैसे लगाता है?', lines: ['एक मशीन लर्निंग मॉडल ने 1,000 से ज़्यादा छात्रों के रिकॉर्ड से पैटर्न सीखा है।', 'हमने तीन मॉडल की तुलना की; Linear Regression सबसे अच्छा रहा, R² 0.901 के साथ।', 'औसतन इसका अनुमान असली अंकों से लगभग 3 अंक के अंदर रहता है।'] } },
+  { icon: 'alert', chips: { en: ['Low: 65+', 'Medium: 50–64', 'High: below 50'], hi: ['Low: 65+', 'Medium: 50–64', 'High: 50 से कम'] },
+    en: { title: 'Risk levels, in plain words', lines: ["Low risk means 65 or above: you're on track.", 'Medium risk means 50 to 64: a little support will help.', 'High risk means below 50: it is time to act now.'] },
+    hi: { title: 'जोखिम स्तर, आसान शब्दों में', lines: ['Low risk यानी 65 या उससे ज़्यादा: आप सही रास्ते पर हैं।', 'Medium risk यानी 50 से 64: थोड़ी मदद काफ़ी होगी।', 'High risk यानी 50 से कम: अभी कदम उठाने का समय है।'] } },
+  { icon: 'teacher', chips: { en: ['Dashboard', 'Manage students', 'Attendance', 'Predict', 'Model Lab', 'Announcements'], hi: ['डैशबोर्ड', 'छात्र प्रबंधन', 'उपस्थिति', 'अनुमान', 'मॉडल लैब', 'सूचनाएँ'] },
+    en: { title: 'For teachers', lines: ['The dashboard shows the whole class, and who needs attention first.', 'Teachers add students, mark attendance and post announcements.', 'Predictions update instantly whenever marks or attendance change.'] },
+    hi: { title: 'शिक्षकों के लिए', lines: ['डैशबोर्ड पूरी क्लास दिखाता है, और यह भी कि किसे सबसे पहले मदद चाहिए।', 'शिक्षक छात्र जोड़ सकते हैं, उपस्थिति लगा सकते हैं और सूचनाएँ भेज सकते हैं।', 'अंक या उपस्थिति बदलते ही अनुमान तुरंत अपडेट हो जाते हैं।'] } },
+  { icon: 'user', chips: { en: ['Overview', 'What-If', 'Goals', 'Tips', 'Report card'], hi: ['ओवरव्यू', 'What-If', 'लक्ष्य', 'सुझाव', 'रिपोर्ट कार्ड'] },
+    en: { title: 'For students', lines: ['Students see their predicted score, grade and class rank.', 'The What-If simulator shows how more study or attendance changes the score.', 'Set a target, and Acadrix suggests a plan to reach it.'] },
+    hi: { title: 'छात्रों के लिए', lines: ['छात्र अपना अनुमानित स्कोर, ग्रेड और क्लास रैंक देख सकते हैं।', 'What-If सिम्युलेटर दिखाता है कि ज़्यादा पढ़ाई या उपस्थिति से स्कोर कैसे बदलता है।', 'अपना लक्ष्य चुनिए, और Acadrix उस तक पहुँचने का प्लान बताएगा।'] } },
+  { icon: 'lock', chips: { en: ['Own data only', 'Protected passwords', 'Server checks'], hi: ['सिर्फ़ अपना डेटा', 'सुरक्षित पासवर्ड', 'सर्वर जाँच'] },
+    en: { title: 'Your data stays private', lines: ["Each student sees only their own record, never anyone else's.", "Passwords are stored in a scrambled form that can't be read back.", 'Every request is checked on the server before anything changes.'] },
+    hi: { title: 'आपका डेटा सुरक्षित है', lines: ['हर छात्र सिर्फ़ अपना रिकॉर्ड देखता है, किसी और का नहीं।', 'पासवर्ड ऐसे बदले हुए रूप में सेव होते हैं जिन्हें वापस पढ़ा नहीं जा सकता।', 'कुछ भी बदलने से पहले सर्वर हर अनुरोध की जाँच करता है।'] } },
+  { icon: 'bulb', chips: { en: ['"How can I improve?"', '"Who is at risk?"', '"My goal"'], hi: ['"मैं कैसे सुधार करूँ?"', '"किसे खतरा है?"', '"मेरा लक्ष्य"'] },
+    en: { title: "I'm always here to help", lines: ['Look for me in the bottom-right corner once you sign in.', 'Ask things like "How can I improve?" or "Who is at risk?"', 'I answer instantly, using your own data.'] },
+    hi: { title: 'मैं हमेशा मदद के लिए यहाँ हूँ', lines: ['साइन इन करने के बाद मुझे नीचे दाएँ कोने में देखिए।', 'पूछिए जैसे "मैं कैसे सुधार करूँ?" या "किसे खतरा है?"', 'मैं आपके अपने डेटा से तुरंत जवाब देता हूँ।'] } },
+  { icon: 'check', chips: { en: ['Teacher: teacher / teacher@123', 'Student: STU101 / student@123'], hi: ['शिक्षक: teacher / teacher@123', 'छात्र: STU101 / student@123'] },
+    en: { title: "You're all set!", lines: ['Sign in as a teacher or a student; demo accounts are on the next page.', 'You can switch language, colours and light or dark mode at any time.', "Let's get started!"] },
+    hi: { title: 'आप तैयार हैं!', lines: ['शिक्षक या छात्र के रूप में साइन इन कीजिए; डेमो अकाउंट अगले पेज पर हैं।', 'भाषा, रंग और लाइट या डार्क मोड कभी भी बदल सकते हैं।', 'चलिए शुरू करते हैं!'] } },
+];
+
+function welcomeView() {
+  return `
+  <main class="welcome">
+    <header class="wel-top">
+      <div class="brand"><img class="brand-logo" src="assets/logo.png" alt=""><span>Acadrix</span></div>
+      <div class="wel-tools">${langSwitch()}${themeSwitcher()}
+        <button type="button" class="btn btn-ghost btn-sm" data-action="tour-skip">${tr('skip')}</button></div>
+    </header>
+    <section class="wel-stage">
+      <figure class="wel-guide" id="wel-guide">
+        <img src="assets/mascot.png" alt="${tr('guide')}">
+        <figcaption>${tr('guide')}</figcaption>
+      </figure>
+      <div class="wel-card glass card-feature" role="region" aria-roledescription="tour">
+        <div class="wel-head"><span class="wel-ic" id="wel-ic"></span><p class="wel-step" id="wel-step"></p></div>
+        <h1 class="wel-title" id="wel-title"></h1>
+        <div class="wel-lines" id="wel-lines" aria-live="polite"></div>
+        <div class="wel-chips" id="wel-chips"></div>
+        <div class="wel-dots" id="wel-dots" role="tablist"></div>
+        <div class="wel-controls">
+          <button type="button" class="btn btn-ghost" id="wel-listen" hidden></button>
+          <span class="wel-spacer"></span>
+          <button type="button" class="btn btn-ghost" id="wel-back">${icon('arrow', 'flip')} ${tr('back')}</button>
+          <button type="button" class="btn btn-primary" id="wel-next"></button>
+        </div>
+      </div>
+    </section>
+  </main>`;
+}
+
+function stopTour() {
+  clearTimeout(state.tourTimer);
+  if (window.speechSynthesis) speechSynthesis.cancel();
+}
+function finishTour() {
+  stopTour();
+  state.voice = false;
+  store.set('acx_welcome_seen', true);
+  state.showWelcome = false;
+  render();
+}
+function speakLines(lines) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const code = state.lang === 'hi' ? 'hi-IN' : 'en-IN';
+  const voices = speechSynthesis.getVoices();
+  const voice = voices.find(v => v.lang === code) || voices.find(v => v.lang.startsWith(state.lang === 'hi' ? 'hi' : 'en'));
+  const u = new SpeechSynthesisUtterance(lines.join(' '));
+  u.lang = code; u.rate = 0.98;
+  if (voice) u.voice = voice;
+  speechSynthesis.speak(u);
+}
+function bindWelcome() {
+  const n = TOUR.length;
+  let typing = false;
+  const listen = $('#wel-listen');
+  const paintListen = () => { listen.innerHTML = `${icon(state.voice ? 'stop' : 'speaker')} ${tr(state.voice ? 'stop' : 'listen')}`; listen.classList.toggle('on', !!state.voice); };
+  if (window.speechSynthesis) { listen.hidden = false; paintListen(); }
+
+  const show = i => {
+    stopTour();
+    state.tourStep = i = clamp(i, 0, n - 1);
+    const step = TOUR[i], text = step[state.lang] || step.en;
+    const chips = Array.isArray(step.chips) ? step.chips : (step.chips[state.lang] || step.chips.en);
+    $('#wel-ic').innerHTML = icon(step.icon);
+    $('#wel-step').textContent = tr('stepOf')(i + 1, n);
+    $('#wel-title').textContent = text.title;
+    $('#wel-chips').innerHTML = chips.map((c, k) => `<span class="wel-chip c${k % 5}">${esc(c)}</span>`).join('');
+    $('#wel-dots').innerHTML = TOUR.map((_, k) => `<button type="button" role="tab" class="${k === i ? 'active' : ''}${k < i ? ' done' : ''}" data-step="${k}" aria-label="${tr('stepOf')(k + 1, n)}" aria-selected="${k === i}"></button>`).join('');
+    $('#wel-back').disabled = i === 0;
+    $('#wel-next').innerHTML = i === n - 1 ? `${tr('start')} ${icon('arrow')}` : `${tr('next')} ${icon('arrow')}`;
+    const box = $('#wel-lines');
+    box.innerHTML = text.lines.map(() => '<p></p>').join('');
+    const ps = $$('p', box);
+    $('#wel-guide').classList.add('talking');
+    typing = true;
+    let line = 0, ch = 0;
+    const tick = () => {
+      if (line >= text.lines.length) { typing = false; $('#wel-guide').classList.remove('talking'); return; }
+      const full = text.lines[line];
+      ps.at(line).classList.add('shown');
+      ps.at(line).textContent = full.slice(0, ++ch);
+      if (ch >= full.length) { line++; ch = 0; state.tourTimer = setTimeout(tick, 420); }
+      else state.tourTimer = setTimeout(tick, 18);
+    };
+    tick();
+    if (state.voice) speakLines(text.lines);
+  };
+  const finishTyping = () => {
+    clearTimeout(state.tourTimer);
+    const text = TOUR[state.tourStep][state.lang] || TOUR[state.tourStep].en;
+    $$('#wel-lines p').forEach((p, k) => { p.textContent = text.lines[k]; p.classList.add('shown'); });
+    typing = false; $('#wel-guide').classList.remove('talking');
+  };
+  const next = () => { if (typing) return finishTyping(); if (state.tourStep >= n - 1) return finishTour(); show(state.tourStep + 1); };
+  const back = () => show(state.tourStep - 1);
+
+  $('#wel-next').addEventListener('click', next);
+  $('#wel-back').addEventListener('click', back);
+  $('#wel-dots').addEventListener('click', e => { const b = e.target.closest('[data-step]'); if (b) show(Number(b.dataset.step)); });
+  listen.addEventListener('click', () => {
+    state.voice = !state.voice; paintListen();
+    if (state.voice) { const t = TOUR[state.tourStep]; speakLines((t[state.lang] || t.en).lines); } else speechSynthesis.cancel();
+  });
+  state.tourKeys = e => {
+    if (!$('.welcome')) return;
+    if (e.key === 'ArrowRight' || e.key === 'Enter') { if (e.target.closest('button') && e.key === 'Enter') return; e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); back(); }
+    if (e.key === 'Escape') finishTour();
+  };
+  show(state.tourStep || 0);
+}
+document.addEventListener('keydown', e => state.tourKeys && state.tourKeys(e));
+
 /* ---------- Login ---------- */
 function loginView() {
   const demo = r => {
     const d = DEMO[r];
     return `<button type="button" class="demo-card ${state.role === r ? 'active' : ''}" data-demo="${r}">
-      <b>${icon(r === 'teacher' ? 'teacher' : 'user')} Try as ${r === 'teacher' ? 'a teacher' : 'a student'}</b>
+      <b>${icon(r === 'teacher' ? 'teacher' : 'user')} ${tr(r === 'teacher' ? 'tryTeacher' : 'tryStudent')}</b>
       <code><span>user:</span> ${d.username}</code><code><span>pass:</span> ${d.password}</code></button>`;
   };
+  const c = loginCopy(state.role);
   return `
   <main class="auth">
-    <div class="auth-theme">${themeSwitcher()}</div>
+    <div class="auth-theme">
+      <button type="button" class="tour-btn" data-action="tour-open">${icon('spark')} ${tr('tour')}</button>
+      ${langSwitch()}${themeSwitcher()}
+    </div>
     <section class="auth-card glass card-feature" id="auth-card">
       <div class="auth-hero">
         <div class="brand"><img class="brand-logo" src="assets/logo.png" alt=""><span>Acadrix</span></div>
         <figure class="hero-mascot" aria-hidden="true">
-          <span class="mascot-bubble">Hi! I'm Drix. Ask me anything!</span>
+          <span class="mascot-bubble">${tr('bubble')}</span>
           <img src="assets/mascot.png" alt="">
         </figure>
-        <h1>Welcome to<br><span class="hl">Acadrix</span></h1>
-        <p class="typing">Let's understand your <span id="typed"></span><span class="caret"></span></p>
-        <p class="muted">A friendly space for students and teachers to follow progress, spot problems early and plan what comes next.</p>
+        <h1>${tr('heroTitle')}</h1>
+        <p class="typing">${tr('typingPrefix')}<span id="typed"></span><span class="caret"></span></p>
+        <p class="muted">${tr('heroText')}</p>
         <ul class="feat">
-          <li><span class="dot">${icon('spark')}</span><div>See where you're heading<small>Your marks, attendance and habits turned into a clear forecast</small></div></li>
-          <li><span class="dot">${icon('users')}</span><div>Nobody slips through the cracks<small>Teachers see who needs support before exams, not after</small></div></li>
-          <li><span class="dot">${icon('bulb')}</span><div>Advice that fits you<small>Small, specific steps instead of generic tips</small></div></li>
+          ${tr('feat').map((f, k) => `<li><span class="dot">${icon(['spark', 'users', 'bulb'].at(k))}</span><div>${f[0]}<small>${f[1]}</small></div></li>`).join('')}
         </ul>
         <p class="auth-foot">AIML Summer Internship 2026 · IIHMF, MNNIT Allahabad</p>
       </div>
@@ -356,31 +581,31 @@ function loginView() {
       <div class="auth-form">
         <div class="role-switch" data-role="${state.role}">
           <span class="pill-bg"></span>
-          <button type="button" data-role="student" class="${state.role === 'student' ? 'active' : ''}">${icon('user')} Student</button>
-          <button type="button" data-role="teacher" class="${state.role === 'teacher' ? 'active' : ''}">${icon('teacher')} Teacher</button>
+          <button type="button" data-role="student" class="${state.role === 'student' ? 'active' : ''}">${icon('user')} ${tr('student')}</button>
+          <button type="button" data-role="teacher" class="${state.role === 'teacher' ? 'active' : ''}">${icon('teacher')} ${tr('teacher')}</button>
         </div>
         <div>
-          <h2 id="form-title">${loginCopy(state.role).title}</h2>
+          <h2 id="form-title">${c.title}</h2>
         </div>
-        <p class="sub" id="form-sub">${loginCopy(state.role).sub}</p>
+        <p class="sub" id="form-sub">${c.sub}</p>
         <form id="login-form" novalidate>
           <div style="display:grid;gap:16px">
-            <label class="field"><span id="lg-user-label">${loginCopy(state.role).user}</span>
-              <div class="input-wrap">${icon('user')}<input id="lg-user" autocomplete="username" placeholder="${loginCopy(state.role).ph}" required></div>
+            <label class="field"><span id="lg-user-label">${c.user}</span>
+              <div class="input-wrap">${icon('user')}<input id="lg-user" autocomplete="username" placeholder="${c.ph}" required></div>
             </label>
-            <label class="field">Password
-              <div class="input-wrap">${icon('lock')}<input id="lg-pass" type="password" autocomplete="current-password" placeholder="Your password" required>
+            <label class="field">${tr('password')}
+              <div class="input-wrap">${icon('lock')}<input id="lg-pass" type="password" autocomplete="current-password" placeholder="${tr('passwordPh')}" required>
                 <button type="button" class="eye" id="lg-eye" aria-label="Show password">${icon('eye')}</button></div>
             </label>
             <p class="form-error" id="lg-err"></p>
-            <button class="btn btn-primary btn-block" type="submit">Sign in ${icon('arrow')}</button>
-            <p class="form-hint" id="lg-hint">${loginCopy(state.role).hint}</p>
+            <button class="btn btn-primary btn-block" type="submit">${tr('signIn')} ${icon('arrow')}</button>
+            <p class="form-hint" id="lg-hint">${c.hint}</p>
           </div>
         </form>
         <div class="demo">
-          <p class="demo-title">${icon('key')} Just looking around? Use a demo account</p>
+          <p class="demo-title">${icon('key')} ${tr('demoTitle')}</p>
           <div class="demo-cards">${demo('student')}${demo('teacher')}</div>
-          <p class="demo-note">Tap a card to fill it in. Every demo student (STU101 – STU112) uses <b>student@123</b>.</p>
+          <p class="demo-note">${tr('demoNote')}</p>
         </div>
       </div>
     </section>
@@ -389,8 +614,8 @@ function loginView() {
 
 function loginCopy(r) {
   return r === 'teacher'
-    ? { title: 'Good to see you again', sub: 'Sign in to check on your class and plan the week ahead.', user: 'Username', ph: 'e.g. teacher', hint: 'Trouble signing in? Contact the department office.' }
-    : { title: 'Hey, welcome back', sub: 'Sign in to see how you\'re doing and what to focus on next.', user: 'Student ID', ph: 'e.g. STU101', hint: 'Forgot your password? Your class teacher can reset it for you.' };
+    ? { title: tr('teacherTitle'), sub: tr('teacherSub'), user: tr('teacherUser'), ph: 'e.g. teacher', hint: tr('teacherHint') }
+    : { title: tr('studentTitle'), sub: tr('studentSub'), user: tr('studentUser'), ph: 'e.g. STU101', hint: tr('studentHint') };
 }
 function bindLogin() {
   const setRole = r => {
@@ -427,7 +652,7 @@ function bindLogin() {
       $('#lg-err').textContent = msg;
       const card = $('#auth-card'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
     };
-    if (!u || !p) return fail(`Please fill in both your ${state.role === 'teacher' ? 'username' : 'student ID'} and password.`);
+    if (!u || !p) return fail(tr('fillBoth')(state.role));
     const btn = $('#login-form .btn-primary');
     btn.disabled = true;
     try {
@@ -438,9 +663,7 @@ function bindLogin() {
       await loadSession();
       toast(`Welcome back, ${firstName(state.user.name)}!`);
     } catch (err) {
-      fail(err.status === 401
-        ? `Hmm, that ${state.role === 'teacher' ? 'username' : 'student ID'} and password don't match. Double-check them, or try a demo account below.`
-        : err.message);
+      fail(err.status === 401 ? tr('mismatch')(state.role) : err.message);
     } finally {
       btn.disabled = false;
     }
@@ -450,7 +673,7 @@ function bindLogin() {
 
 function startTyping() {
   clearTimeout(state.typingTimer);
-  const words = ['progress.', 'strengths.', 'next steps.', 'potential.'];
+  const words = tr('typingWords');
   let w = 0, i = 0, del = false;
   const tick = () => {
     const el = $('#typed'); if (!el) return;
@@ -517,10 +740,17 @@ const NAV = {
 function render() {
   destroyCharts();
   applyTheme();
-  document.body.dataset.portal = state.session ? state.session.role : '';   // picks the portal wallpaper
+  document.body.dataset.portal = state.session ? state.session.role : 'guest';   // picks the wallpaper
   const app = $('#app');
+  stopTour();
+  state.tourKeys = null;
   chat.refresh();
-  if (!state.session) { app.innerHTML = loginView(); bindLogin(); return; }
+  if (!state.session) {
+    document.body.dataset.screen = state.showWelcome ? 'welcome' : 'login';
+    if (state.showWelcome) { app.innerHTML = welcomeView(); bindWelcome(); } else { app.innerHTML = loginView(); bindLogin(); }
+    return;
+  }
+  document.body.dataset.screen = 'portal';
 
   const role = state.session.role, nav = NAV[role];
   if (!nav.some(n => n.id === state.view)) state.view = nav[0].id;
@@ -1760,8 +1990,9 @@ const chat = {
 /* ---------- Global events ---------- */
 document.addEventListener('click', e => {
   if (e.target.matches('[data-backdrop]')) return closeModal();
-  const t = e.target.closest('[data-theme-set],[data-mode-toggle],[data-nav],[data-action]');
+  const t = e.target.closest('[data-theme-set],[data-mode-toggle],[data-lang-set],[data-nav],[data-action]');
   if (!t) return;
+  if (t.dataset.langSet) return setLang(t.dataset.langSet);
   if (t.hasAttribute('data-mode-toggle')) return toggleMode();
   if (t.dataset.themeSet) return setTheme(t.dataset.themeSet);
   if (t.dataset.nav) return go(t.dataset.nav);
@@ -1800,11 +2031,14 @@ document.addEventListener('click', e => {
       }).catch(x => toast(x.message, 'error'));
       return;
     case 'close-modal': return closeModal();
+    case 'tour-skip': return finishTour();
+    case 'tour-open': state.showWelcome = true; state.tourStep = 0; return render();
   }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#modal-root').innerHTML) closeModal(); });
 
 applyTheme();
+document.documentElement.lang = state.lang;
 if (state.token) {
   $('#app').innerHTML = '<div class="boot"><img src="assets/logo.png" alt=""><p>Getting your space ready…</p></div>';
   loadSession().catch(() => endSession());
